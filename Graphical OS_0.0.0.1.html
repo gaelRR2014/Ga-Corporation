@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Graphical OS</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --text-color: #f8fafc;
+            --accent-color: #3b82f6;
+            --panel-bg: rgba(30, 41, 59, 0.85);
+            --icon-size: 64px;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            user-select: none;
+        }
+
+        /* Pantalla de Carga y Configuración Inicial */
+        #setup-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #090d16;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.5s ease;
+        }
+
+        .setup-step {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            max-width: 400px;
+            padding: 20px;
+        }
+
+        .setup-step.active {
+            display: flex;
+        }
+
+        .setup-btn, .os-btn {
+            background: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 15px;
+            transition: transform 0.1s;
+        }
+
+        .setup-btn:active {
+            transform: scale(0.95);
+        }
+
+        .options-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 20px;
+            width: 100%;
+        }
+
+        .option-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .option-card.selected {
+            border-color: var(--accent-color);
+            background: rgba(59, 130, 246, 0.2);
+        }
+
+        /* Barra de Estado */
+        #status-bar {
+            height: 30px;
+            background: rgba(0, 0, 0, 0.3);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 15px;
+            font-size: 13px;
+            z-index: 1000;
+        }
+
+        .status-icons {
+            display: flex;
+            gap: 8px;
+        }
+
+        /* Escritorio / Pantalla de Inicio */
+        #desktop {
+            flex: 1;
+            position: relative;
+            padding: 20px;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, 90px);
+            grid-auto-rows: 90px;
+            gap: 15px;
+        }
+
+        .desktop-icon {
+            width: var(--icon-size);
+            height: var(--icon-size);
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            position: absolute;
+            transition: box-shadow 0.2s;
+        }
+
+        .desktop-icon span {
+            font-size: 11px;
+            margin-top: 4px;
+            text-align: center;
+            width: 80px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* Botón flotante para mover iconos */
+        #edit-mode-toggle {
+            position: fixed;
+            bottom: 70px;
+            right: 20px;
+            background: #1e293b;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            z-index: 1000;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+
+        #edit-mode-toggle.active {
+            background: var(--accent-color);
+            border-color: white;
+        }
+
+        /* Centro de Control */
+        #control-center {
+            position: absolute;
+            top: 30px;
+            right: 0;
+            width: 300px;
+            background: var(--panel-bg);
+            backdrop-filter: blur(10px);
+            border-bottom-left-radius: 16px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            transform: translateY(-120%);
+            transition: transform 0.3s ease;
+            z-index: 2000;
+        }
+
+        #control-center.open {
+            transform: translateY(0);
+        }
+
+        .control-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+
+        .control-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            padding: 15px 10px;
+            border-radius: 12px;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+            font-size: 11px;
+            transition: background 0.2s;
+        }
+
+        .control-btn.active {
+            background: var(--accent-color);
+        }
+
+        /* Barra de Navegación inferior (si se eligen botones) */
+        #nav-bar {
+            height: 45px;
+            background: rgba(0,0,0,0.4);
+            display: none;
+            justify-content: space-around;
+            align-items: center;
+        }
+
+        .nav-btn {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 18px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Pantalla de Configuración Inicial (Idioma + Navegación) -->
+    <div id="setup-screen">
+        <!-- Paso 1: Idioma -->
+        <div id="step-lang" class="setup-step active">
+            <h2 id="txt-select-lang">Selecciona tu idioma</h2>
+            <div class="options-grid">
+                <div class="option-card selected" onclick="setLang('es', this)">Español</div>
+                <div class="option-card" onclick="setLang('en', this)">English</div>
+                <div class="option-card" onclick="setLang('fr', this)">Français</div>
+                <div class="option-card" onclick="setLang('de', this)">Deutsch</div>
+                <div class="option-card" onclick="setLang('it', this)">Italiano</div>
+                <div class="option-card" onclick="setLang('pt', this)">Português</div>
+            </div>
+            <button class="setup-btn" onclick="nextStep(1)" id="btn-next">Siguiente</button>
+        </div>
+
+        <!-- Paso 2: Navegación -->
+        <div id="step-nav" class="setup-step">
+            <h2 id="txt-select-nav">Tipo de Navegación</h2>
+            <div class="options-grid" style="grid-template-columns: 1fr 1fr;">
+                <div class="option-card selected" onclick="setNav('gestures', this)" id="opt-gestures">Gestos</div>
+                <div class="option-card" onclick="setNav('buttons', this)" id="opt-buttons">Botones</div>
+            </div>
+            <button class="setup-btn" onclick="finishSetup()" id="btn-start">Iniciar Graphical OS</button>
+        </div>
+    </div>
+
+    <!-- Barra de Estado -->
+    <div id="status-bar" onclick="toggleControlCenter()">
+        <span id="clock">12:00</span>
+        <div class="status-icons" id="status-indicators">
+            <!-- Indicadores dinámicos de red/conexión -->
+        </div>
+    </div>
+
+    <!-- Centro de Control -->
+    <div id="control-center">
+        <div style="font-weight: bold; margin-bottom: 5px;" id="cc-title">Centro de Control</div>
+        <div class="control-grid">
+            <button class="control-btn" id="btn-wifi" onclick="toggleControl('wifi')">
+                📶 <span id="lbl-wifi">Wi-Fi</span>
+            </button>
+            <button class="control-btn" id="btn-bluetooth" onclick="toggleControl('bluetooth')">
+                🦷 <span id="lbl-bt">Bluetooth</span>
+            </button>
+            <button class="control-btn" id="btn-airplane" onclick="toggleControl('airplane')">
+                ✈️ <span id="lbl-air">Avión</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Escritorio -->
+    <div id="desktop" id="desktop-area">
+        <!-- Iconos de prueba -->
+        <div class="desktop-icon" style="top: 20px; left: 20px;" data-id="1">📁<span>Archivos</span></div>
+        <div class="desktop-icon" style="top: 20px; left: 120px;" data-id="2">⚙️<span>Ajustes</span></div>
+        <div class="desktop-icon" style="top: 20px; left: 220px;" data-id="3">💬<span>Chat</span></div>
+    </div>
+
+    <!-- Botón flotante para editar posición de iconos -->
+    <button id="edit-mode-toggle" onclick="toggleEditMode()">✏️ Mover Iconos</button>
+
+    <!-- Barra de navegación inferior (si se activa) -->
+    <div id="nav-bar">
+        <button class="nav-btn" onclick="navAction('back')">◀</button>
+        <button class="nav-btn" onclick="navAction('home')">⌂</button>
+        <button class="nav-btn" onclick="navAction('recent')">☰</button>
+    </div>
+
+    <script>
+        let currentLang = 'es';
+        let currentNav = 'gestures';
+        let selectedLangCode = 'es';
+        let selectedNavType = 'gestures';
+        let editMode = false;
+
+        // Estados del Centro de Control
+        let states = {
+            wifi: true,
+            bluetooth: false,
+            airplane: false
+        };
+
+        const translations = {
+            es: { selectLang: "Selecciona tu idioma", next: "Siguiente", selectNav: "Tipo de Navegación", gestures: "Gestos", buttons: "Botones", start: "Iniciar Graphical OS", cc: "Centro de Control", wifi: "Wi-Fi", bt: "Bluetooth", air: "Avión", move: "Mover Iconos", moving: "Bloquear Iconos" },
+            en: { selectLang: "Select your language", next: "Next", selectNav: "Navigation Type", gestures: "Gestures", buttons: "Buttons", start: "Start Graphical OS", cc: "Control Center", wifi: "Wi-Fi", bt: "Bluetooth", air: "Airplane", move: "Move Icons", moving: "Lock Icons" },
+            fr: { selectLang: "Sélectionnez votre langue", next: "Suivant", selectNav: "Type de Navigation", gestures: "Gestes", buttons: "Boutons", start: "Démarrer Graphical OS", cc: "Centre de contrôle", wifi: "Wi-Fi", bt: "Bluetooth", air: "Avion", move: "Déplacer", moving: "Verrouiller" },
+            de: { selectLang: "Sprache auswählen", next: "Weiter", selectNav: "Navigationstyp", gestures: "Gesten", buttons: "Tasten", start: "Graphical OS starten", cc: "Kontrollzentrum", wifi: "Wi-Fi", bt: "Bluetooth", air: "Flugzeug", move: "Verschieben", moving: "Sperren" },
+            it: { selectLang: "Seleziona la lingua", next: "Avanti", selectNav: "Tipo di Navigazione", gestures: "Gesti", buttons: "Pulsanti", start: "Avvia Graphical OS", cc: "Centro di Controllo", wifi: "Wi-Fi", bt: "Bluetooth", air: "Aereo", move: "Sposta", moving: "Blocca" },
+            pt: { selectLang: "Selecione o idioma", next: "Seguinte", selectNav: "Tipo de Navegação", gestures: "Gestos", buttons: "Botões", start: "Iniciar Graphical OS", cc: "Centro de Controlo", wifi: "Wi-Fi", bt: "Bluetooth", air: "Avião", move: "Mover", moving: "Bloquear" }
+        };
+
+        function setLang(lang, el) {
+            selectedLangCode = lang;
+            document.querySelectorAll('#step-lang .option-card').forEach(c => c.classList.remove('selected'));
+            el.classList.add('selected');
+        }
+
+        function setNav(nav, el) {
+            selectedNavType = nav;
+            document.querySelectorAll('#step-nav .option-card').forEach(c => c.classList.remove('selected'));
+            el.classList.add('selected');
+        }
+
+        function nextStep(step) {
+            if(step === 1) {
+                currentLang = selectedLangCode;
+                updateTexts();
+                document.getElementById('step-lang').classList.remove('active');
+                document.getElementById('step-nav').classList.add('active');
+            }
+        }
+
+        function finishSetup() {
+            currentNav = selectedNavType;
+            if(currentNav === 'buttons') {
+                document.getElementById('nav-bar').style.display = 'flex';
+            }
+            document.getElementById('setup-screen').style.opacity = '0';
+            setTimeout(() => {
+                document.getElementById('setup-screen').style.display = 'none';
+            }, 500);
+            updateStatusIndicators();
+        }
+
+        function updateTexts() {
+            let t = translations[currentLang];
+            document.getElementById('txt-select-lang').innerText = t.selectLang;
+            document.getElementById('btn-next').innerText = t.next;
+            document.getElementById('txt-select-nav').innerText = t.selectNav;
+            document.getElementById('opt-gestures').innerText = t.gestures;
+            document.getElementById('opt-buttons').innerText = t.buttons;
+            document.getElementById('btn-start').innerText = t.start;
+            document.getElementById('cc-title').innerText = t.cc;
+            document.getElementById('lbl-wifi').innerText = t.wifi;
+            document.getElementById('lbl-bt').innerText = t.bt;
+            document.getElementById('lbl-air').innerText = t.air;
+            updateEditBtnText();
+        }
+
+        function updateEditBtnText() {
+            let t = translations[currentLang];
+            let btn = document.getElementById('edit-mode-toggle');
+            btn.innerHTML = editMode ? `🔒 ${t.moving}` : `✏️ ${t.move}`;
+        }
+
+        // Reloj en tiempo real
+        setInterval(() => {
+            let now = new Date();
+            document.getElementById('clock').innerText = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }, 1000);
+
+        function toggleControlCenter() {
+            let cc = document.getElementById('control-center');
+            cc.classList.toggle('open');
+        }
+
+        // Lógica de los botones del Centro de Control y Barra de Estado
+        function toggleControl(feature) {
+            if (feature === 'airplane') {
+                states.airplane = !states.airplane;
+                if (states.airplane) {
+                    states.wifi = false;
+                    states.bluetooth = false;
+                }
+            } else if (feature === 'wifi') {
+                if (!states.airplane) states.wifi = !states.wifi;
+            } else if (feature === 'bluetooth') {
+                if (!states.airplane) states.bluetooth = !states.bluetooth;
+            }
+
+            updateControlUI();
+            updateStatusIndicators();
+        }
+
+        function updateControlUI() {
+            document.getElementById('btn-wifi').classList.toggle('active', states.wifi);
+            document.getElementById('btn-bluetooth').classList.toggle('active', states.bluetooth);
+            document.getElementById('btn-airplane').classList.toggle('active', states.airplane);
+        }
+
+        function updateStatusIndicators() {
+            let container = document.getElementById('status-indicators');
+            let html = '';
+
+            if (states.airplane) {
+                html += '<span>✈️</span>';
+            } else {
+                if (states.wifi) html += '<span>📶</span>';
+                if (states.bluetooth) html += '<span>🦷</span>';
+            }
+            container.innerHTML = html;
+        }
+
+        // Sistema para mover iconos en la pantalla de inicio
+        function toggleEditMode() {
+            editMode = !editMode;
+            let btn = document.getElementById('edit-mode-toggle');
+            btn.classList.toggle('active', editMode);
+            updateEditBtnText();
+        }
+
+        // Arrastrar iconos
+        let activeIcon = null;
+        let offsetX = 0, offsetY = 0;
+
+        document.querySelectorAll('.desktop-icon').forEach(icon => {
+            icon.addEventListener('mousedown', startDrag);
+            icon.addEventListener('touchstart', startDrag, {passive: false});
+        });
+
+        function startDrag(e) {
+            if (!editMode) return;
+            activeIcon = this;
+            let clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            let clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            
+            offsetX = clientX - activeIcon.offsetLeft;
+            offsetY = clientY - activeIcon.offsetTop;
+
+            document.addEventListener('mousemove', onDrag);
+            document.addEventListener('mouseup', stopDrag);
+            document.addEventListener('touchmove', onDrag, {passive: false});
+            document.addEventListener('touchend', stopDrag);
+        }
+
+        function onDrag(e) {
+            if (!activeIcon) return;
+            let clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            let clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+            activeIcon.style.left = (clientX - offsetX) + 'px';
+            activeIcon.style.top = (clientY - offsetY) + 'px';
+        }
+
+        function stopDrag() {
+            activeIcon = null;
+            document.removeEventListener('mousemove', onDrag);
+            document.removeEventListener('mouseup', stopDrag);
+            document.removeEventListener('touchmove', onDrag);
+            document.removeEventListener('touchend', stopDrag);
+        }
+
+        function navAction(action) {
+            if(action === 'home') {
+                document.getElementById('control-center').classList.remove('open');
+            }
+        }
+
+        // Inicializar estado visual de controles
+        updateControlUI();
+    </script>
+</body>
+</html>
